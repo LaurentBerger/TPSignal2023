@@ -69,6 +69,7 @@ class InterfaceGeneration(wx.Panel):
 
         self.parent = parent
         self.val_Fe = ['11025', '22050', '32000', '44100', '48000', '96000']
+        self.amplitude = 0.5
         self._f0_t0 = 0
         self._f1_t1 = 440
         self._f0_sinus = 1000
@@ -240,6 +241,7 @@ class InterfaceGeneration(wx.Panel):
                                              self._duree_chirp,
                                              self.f1_t1(),
                                              method=self.methode)
+            self.signal *= self.amplitude
             return True
         except ValueError as err:
             self.err_msg = str(err)
@@ -371,6 +373,7 @@ class InterfaceGeneration(wx.Panel):
 
     def signal_gaussian(self):
         self.signal = scipy.signal.gausspulse(self.t_ech, fc=self.f0_gaussian(), bw=self._ratio_gaussian/1000)
+        self.signal *= self.amplitude
         return True
 
     def save_gaussian(self, event):
@@ -497,6 +500,7 @@ class InterfaceGeneration(wx.Panel):
         self.signal = np.sin(self.t_ech * 2 * np.pi * self.f0_sinus())
         if self.sinus_reference == True:
             self.signal = self.signal + np.sin(self.t_ech * 2 * np.pi * 1000)
+        self.signal *= self.amplitude
         return True
 
     def play_sinus(self, event):
@@ -620,6 +624,7 @@ class InterfaceGeneration(wx.Panel):
 
     def signal_carre(self):
         self.signal = scipy.signal.square(self.t_ech * 2 * np.pi * self.f0_square(), self._ratio_square/100)
+        self.signal *= self.amplitude
         return True
 
     def save_square(self, event):
