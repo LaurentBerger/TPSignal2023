@@ -4,6 +4,19 @@ import sounddevice as sd
 from matplotlib import pyplot as plt
 import wx
 
+def on_click_module(event, freq, mod_f, type):
+    if event.key == 'shift':
+        x, y = event.xdata, event.ydata
+        idx = np.argmin(np.abs(freq-x))
+        if event.inaxes:
+            ax = event.inaxes  # the axes instance
+            print('Freq sélectionnée ', format(x, '.5e'))
+            print('Fréquence retenue ', format(freq[idx],'.5e'), "Hz")
+            if type == 0:
+                print('Module ', format(mod_f[idx], '.4e')," u.a.")
+            if type == 1:
+                print('Phase ', format(mod_f[idx], '.4e')," u.a.")
+
 my_app = wx.App()
 nom_fichier_son = wx.FileSelector("Fichier son",wildcard="*.wav")
 son , Fe = sf.read(nom_fichier_son)
@@ -18,7 +31,7 @@ else:
     print("Son stéréophonique")
     print("Voulez vous conserver la voie 0, 1 ou garder les deux?")
     l_choix = ["0", "1", "2"]
-    while choix not in l_choix
+    while choix not in l_choix:
         choix = input("Votre choix 0, 1 ou 2")
     match choix:
         case "0":
@@ -58,8 +71,10 @@ for idx_voie in range(0,nb_courbe):
     plt.pause(0.1)
 # Tracer du module du spectre de la TFD du signal temporel
     plt.figure(2)
-    graphe2.plot(np.fft.fftshift(freq),
-                 np.fft.fftshift(np.abs(Y).real/Fe),
+    val_freq = np.fft.fftshift(freq)
+    val_mod = np.fft.fftshift(np.abs(Y).real/Fe)
+    graphe2.plot(val_freq,
+                 val_mod,
                  marker='.',
                  label='Voie ' + str(idx_voie))
     if idx_voie == 0:
@@ -69,8 +84,9 @@ for idx_voie in range(0,nb_courbe):
     graphe2.set(xlabel='Fréquence (Hz)',ylabel='Amplitude (u.a.)')
 # Tracer de la phase du spectre de la TFD du signal temporel
     plt.figure(3)
-    graphe3.plot(np.fft.fftshift(freq),
-                 np.fft.fftshift(np.angle(Y)),
+    val_angle = np.fft.fftshift(np.angle(Y))
+    graphe3.plot(val_freq,
+                 val_angle,
                  marker='.',
                  label='Voie ' + str(idx_voie))
     if idx_voie == 0:
@@ -78,4 +94,9 @@ for idx_voie in range(0,nb_courbe):
     graphe3.legend()
     graphe3.grid(True)
     graphe3.set(xlabel='Fréquence (Hz)',ylabel='Phase (rd)')
+    module_mouse =  lambda event: on_click_module(event, val_freq, val_mod,0)
+    fig2.canvas.mpl_connect('button_press_event', module_mouse)
+    phase_mouse =  lambda event: on_click_module(event, val_freq, val_angle,1)
+    fig3.canvas.mpl_connect('button_press_event', phase_mouse)
+
 plt.show()
