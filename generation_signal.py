@@ -263,7 +263,8 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_chirp()
         if self.chirp():
-            nom_fichier = "chirp_" + self.methode +  "_"
+            nom_fichier = "chirp_" + str(self.Fe) + "_"
+            nom_fichier = nom_fichier + self.methode +  "_"
             nom_fichier = nom_fichier + str(self.duree_chirp()) + "s_"
             nom_fichier = nom_fichier + str(self.f0_t0()) + "_" + str(self.f1_t1())
             nom_fichier = nom_fichier + ".wav"
@@ -382,7 +383,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_gaussian()
         if self.signal_gaussian():
-            nom_fichier = "gaussian_" 
+            nom_fichier = "gaussian_"+ str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_gaussian()) + "s_"
             nom_fichier = nom_fichier + str(self.f0_gaussian()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_gaussian()) 
@@ -519,7 +520,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_sinus()
         if self.sinus():
-            nom_fichier = "sinus_"
+            nom_fichier = "sinus_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_sinus()) + "s_"
             nom_fichier = nom_fichier + str(self.f0_sinus())
             nom_fichier = nom_fichier + ".wav"
@@ -633,7 +634,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_square()
         if self.signal_carre():
-            nom_fichier = "square_" 
+            nom_fichier = "square_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_square()) + "s_"
             nom_fichier = nom_fichier + str(self.f0_square()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_square()) 
