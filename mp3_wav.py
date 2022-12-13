@@ -1,4 +1,5 @@
 import os
+import time
 import ffmpeg
 import wx
 
@@ -21,6 +22,7 @@ for ab in bit_rate:
     cmd = audio_wav.output(nom_fichier,audio_bitrate=ab).overwrite_output()
     ffmpeg.compile(cmd)
     cmd.run_async(quiet=True)
+    time.sleep(3)
 
 bit_rate = ['8k', '32k', '128k', '320k']
 for ab in bit_rate: 
@@ -31,3 +33,4 @@ for ab in bit_rate:
     cmd = audio_mp3.output(nom_fichier,ar=44100).overwrite_output()
     ffmpeg.compile(cmd)
     cmd.run_async(quiet=True)
+    time.sleep(3)
