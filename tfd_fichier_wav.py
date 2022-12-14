@@ -1,21 +1,49 @@
 import numpy as np
 import soundfile as sf
 import sounddevice as sd
+import scipy.signal
 from matplotlib import pyplot as plt
 import wx
 
-def on_click_module(event, freq, mod_f, type):
+def on_click_module(event, freq, mod_f, type, graphe):
     if event.key == 'shift':
         x, y = event.xdata, event.ydata
         idx = np.argmin(np.abs(freq-x))
+        n_min = max(idx - 1000, 0)
+        n_max = min(idx + 1000, freq.shape[0])
+        idx = np.argmin(np.abs(y - mod_f[n_min : n_max])) + n_min
         if event.inaxes:
             ax = event.inaxes  # the axes instance
-            print('Freq sélectionnée ', format(x, '.5e'))
             print('Fréquence retenue ', format(freq[idx],'.5e'), "Hz")
             if type == 0:
                 print('Module ', format(mod_f[idx], '.4e')," u.a.")
             if type == 1:
                 print('Phase ', format(mod_f[idx], '.4e')," u.a.")
+    if event.key == 'control' and type == 0:
+        x, y = event.xdata, event.ydata
+        idx = np.argmin(np.abs(freq-x))
+        n_min = max(idx - 1000, 0)
+        n_max = min(idx + 1000, freq.shape[0])
+        idx = np.argmin(np.abs(y - mod_f[n_min : n_max])) + n_min
+        if event.inaxes:
+            ax = event.inaxes  # the axes instance
+            print('Fréquence retenue ', format(freq[idx],'.5e'), "Hz")
+            pos_peak, _ = scipy.signal.find_peaks(mod_f, height=mod_f[idx]/2)
+            nb_peak = 0
+            for p in pos_peak:                   
+                if freq[p] > 0:
+                    print('F ', format(freq[p],'.5e'), "Hz",
+                          'M ', format(mod_f[p], '.4e')," u.a.")
+                    nb_peak = nb_peak + 1
+                    if nb_peak>10:
+                        print("Number of peaks is greater than 10")
+                        print("Stop iterating")
+                        break
+            if nb_peak <= 10:
+                pos = freq[pos_peak] > 0
+                graphe[0].plot(freq[pos_peak[pos]], mod_f[pos_peak[pos]], "x")
+                graphe[1].canvas.draw()
+                
 
 my_app = wx.App()
 nom_fichier_son = wx.FileSelector("Fichier son",wildcard="*.wav")
@@ -94,9 +122,9 @@ for idx_voie in range(0,nb_courbe):
     graphe3.legend()
     graphe3.grid(True)
     graphe3.set(xlabel='Fréquence (Hz)',ylabel='Phase (rd)')
-    module_mouse =  lambda event: on_click_module(event, val_freq, val_mod,0)
+    module_mouse =  lambda event: on_click_module(event, val_freq, val_mod,0, (graphe2, fig2))
     fig2.canvas.mpl_connect('button_press_event', module_mouse)
-    phase_mouse =  lambda event: on_click_module(event, val_freq, val_angle,1)
+    phase_mouse =  lambda event: on_click_module(event, val_freq, val_angle,1, (graphe3,fig3))
     fig3.canvas.mpl_connect('button_press_event', phase_mouse)
 
 plt.show()
