@@ -48,6 +48,9 @@ def on_click_module(event, freq, mod_f, type, graphe):
 my_app = wx.App()
 nom_fichier_son = wx.FileSelector("Fichier son",wildcard="*.wav")
 son , Fe = sf.read(nom_fichier_son)
+t_ech = np.arange(0,son.shape[0])*1/Fe
+son = scipy.signal.square(t_ech * 2 * np.pi * 1153, 0.5)
+
 del my_app
 N = son.shape[0]
 print("Nombre d'échantillons : ", N)
