@@ -26,7 +26,7 @@ class WavAnalysis:
 
     def init_signal(self):
         self.N = self.son.shape[0]
-        print("Nombre d'échantillons : ", self.N)
+        print("Nombre d'échantillons : ", self.N, self.son.shape)
         print("Fréquence d'échantillonnage : ", self.Fe)
         if len(self.son.shape) == 1:
             self.nb_courbe = 1
@@ -34,18 +34,23 @@ class WavAnalysis:
             print("Son stéréophonique")
             print("Voulez vous conserver la voie 0, 1 ou garder les deux?")
             l_choix = ["0", "1", "2"]
+            choix = ''
             while choix not in l_choix:
                 choix = input("Votre choix 0, 1 ou 2")
             match choix:
                 case "0":
                     print("Extraction de la voie 0 pour analyse")
                     self.son = self.son[:,0]
+                    self.nb_courbe = 1
                 case "1":
                     print("Extraction de la voie 1 pour analyse")
                     self.son = self.son[:,1]
+                    self.nb_courbe = 1
                 case _:
                     print("Analyse des deux voies")
+                    self.nb_courbe = 2
         print("Nombre de voies : ", self.nb_courbe)
+        print("Nombre d'échantillons : ", self.N, self.son.shape)
         self.S = np.fft.fft(self.son, axis=0)
 
     def run(self):    

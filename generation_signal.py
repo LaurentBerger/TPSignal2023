@@ -29,6 +29,14 @@ SLIDER_F0_SINUS = 5003
 SLIDER_DUREE_SINUS = 5005
 CASE_REFERENCE = 5006
 
+BOUTON_SAVE_RAMP = 8001
+BOUTON_PLAY_RAMP = 8002
+SLIDER_F0_RAMPE_FONCTION = 8003
+SLIDER_F0_RAMP = 8003
+SLIDER_F1_RAMP = 8004
+SLIDER_NB_RAMP = 8005
+SLIDER_DUREE_RAMP = 8006
+
 BOUTON_SAVE_SQUARE = 6001
 BOUTON_PLAY_SQUARE = 6002
 SLIDER_F0_SQUARE = 6003
@@ -70,6 +78,10 @@ class InterfaceGeneration(wx.Panel):
         self.parent = parent
         self.val_Fe = ['11025', '22050', '32000', '44100', '48000', '96000']
         self.amplitude = 0.5
+        self.fct_ramp = 'sin'
+        self._nb_ramp = 10
+        self._f0_ramp = 0
+        self._f1_ramp = 440
         self._f0_t0 = 0
         self._f1_t1 = 440
         self._f0_sinus = 1000
@@ -81,6 +93,7 @@ class InterfaceGeneration(wx.Panel):
         self.Fe = 22050
         self.t_ech = None
         self.dico_slider = {0: None}
+        self._duree_ramp = 1000
         self._duree_chirp = 1000
         self._duree_sinus = 1000
         self._duree_square = 1000
@@ -90,6 +103,7 @@ class InterfaceGeneration(wx.Panel):
         self.choix_Fe_chirp =  None
         self.choix_Fe_gaussian =  None
         self.choix_Fe_square =  None
+        self.signal = None
         self.parent.Show()
 
     def f0_t0(self, f=None):
@@ -101,6 +115,21 @@ class InterfaceGeneration(wx.Panel):
         if f is not None:
             self._f1_t1 = f
         return self._f1_t1
+
+    def nb_ramp(self, f=None):
+        if f is not None:
+            self._nb_ramp = f
+        return self._nb_ramp
+
+    def f0_ramp(self, f=None):
+        if f is not None:
+            self._f0_ramp = f
+        return self._f0_ramp
+
+    def f1_ramp(self, f=None):
+        if f is not None:
+            self._f1_ramp = f
+        return self._f1_ramp
 
     def f0_sinus(self, f=None):
         if f is not None:
@@ -142,6 +171,11 @@ class InterfaceGeneration(wx.Panel):
             self._duree_chirp = f
         return self._duree_chirp
 
+    def duree_ramp(self, f=None):
+        if f is not None:
+            self._duree_ramp = f
+        return self._duree_ramp
+
     def duree_gaussian(self, f=None):
         if f is not None:
             self._duree_gaussian = f
@@ -181,6 +215,7 @@ class InterfaceGeneration(wx.Panel):
         self.ajouter_page_chirp()
         self.ajouter_page_square()
         self.ajouter_page_gaussian()
+        self.ajouter_page_rampe()
         self.note_book.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.close_page)
         self.note_book.Refresh(True)
         self.note_book.SetSize(self.parent.GetClientSize())
@@ -228,9 +263,9 @@ class InterfaceGeneration(wx.Panel):
         self.dico_slider[id_fenetre](val)
 
     def maj_param_chirp(self):
-        self.t_ech = np.arange(0,self._duree_chirp/1000,1/self.Fe)
         idx =  self.choix_Fe_chirp.GetCurrentSelection()
         self.Fe = float(self.choix_Fe_chirp.GetString(idx))
+        self.t_ech = np.arange(0,self._duree_chirp/1000,1/self.Fe)
         idx =  self.choix_chirp.GetCurrentSelection()
         self.methode = self.choix_chirp.GetString(idx)
 
@@ -304,12 +339,12 @@ class InterfaceGeneration(wx.Panel):
         self.ctrl.append(ctrl)
         style_texte = wx.SL_HORIZONTAL | wx.SL_LABELS | wx.SL_MIN_MAX_LABELS
         gadget = wx.Slider(page,
-                             id=SLIDER_F0_CHIRP,
-                             value=self.f0_t0(),
-                             minValue=0,
-                             maxValue=self.Fe//2,
-                             style=style_texte,
-                             name="Frequency t=0")
+                           id=SLIDER_F0_CHIRP,
+                           value=self.f0_t0(),
+                           minValue=0,
+                           maxValue=int(self.Fe//2),
+                           style=style_texte,
+                           name="Frequency t=0")
         self.dico_slider[SLIDER_F0_CHIRP] = self.f0_t0
         gadget.Bind(wx.EVT_SCROLL,
                     self.change_slider,
@@ -323,7 +358,7 @@ class InterfaceGeneration(wx.Panel):
                              id=SLIDER_F1_CHIRP,
                              value=self.f1_t1(),
                              minValue=0,
-                             maxValue=self.Fe//2,
+                             maxValue=int(self.Fe//2),
                              style=style_texte,
                              name="Frequency t=D")
         self.dico_slider[SLIDER_F1_CHIRP] = self.f1_t1
@@ -364,6 +399,7 @@ class InterfaceGeneration(wx.Panel):
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         page.SetSizerAndFit(ma_grille)
         self.note_book.AddPage(page, name)
+        self.maj_param_chirp()
         self.ind_page = self.ind_page + 1
 
 
@@ -490,6 +526,7 @@ class InterfaceGeneration(wx.Panel):
         page.SetSizerAndFit(ma_grille)
         self.note_book.AddPage(page, name)
         self.ctrl.append(ctrl)
+        self.maj_param_gaussian()
         self.ind_page = self.ind_page + 1
 
     def maj_param_sinus(self):
@@ -616,6 +653,7 @@ class InterfaceGeneration(wx.Panel):
         page.SetSizerAndFit(ma_grille)
         self.note_book.AddPage(page, name)
         self.ctrl.append(ctrl)
+        self.maj_param_sinus()
         self.ind_page = self.ind_page + 1
 
     def maj_param_square(self):
@@ -682,7 +720,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_F0_SQUARE,
                            value=self.f0_square(),
                            minValue=0,
-                           maxValue=self.Fe//2,
+                           maxValue=int(self.Fe//2),
                            style=style_texte)
         self.dico_slider[SLIDER_F0_SQUARE] = self.f0_square
         gadget.Bind(wx.EVT_SCROLL,
@@ -741,6 +779,7 @@ class InterfaceGeneration(wx.Panel):
         page.SetSizerAndFit(ma_grille)
         self.note_book.AddPage(page, name)
         self.ctrl.append(ctrl)
+        self.maj_param_square()
         self.ind_page = self.ind_page + 1
 
 
@@ -758,10 +797,186 @@ class InterfaceGeneration(wx.Panel):
             fichier.write(self.flux_audio.plotdata)
 
 
+    def maj_param_ramp(self):
+        idx =  self.choix_Fe_ramp.GetCurrentSelection()
+        self.Fe = float(self.choix_Fe_ramp.GetString(idx))
+        self.t_ech = np.arange(0,self._duree_ramp/1000,1/self.Fe)
+        if self.signal is None or self.signal.shape[0] != self.t_ech.shape[0]:
+            self.signal = np.zeros(shape=self.t_ech.shape[0], dtype=np.float64)
+        idx =  self.choix_ramp.GetCurrentSelection()
+        self.fct_ramp = self.choix_ramp.GetString(idx)
+
+    def ramp(self):
+        try:
+            
+            print(self.t_ech.shape[0], self._nb_ramp, self._f0_ramp, self.fct_ramp)
+            t_beg = 0
+            t_end = self.t_ech.shape[0] // self._nb_ramp
+            width = t_end
+            f = self._f0_ramp
+            t = self.t_ech[0: width]
+            for idx in range(self._nb_ramp):
+                match self.fct_ramp:
+                    case 'sin':
+                        self.signal[t_beg: t_end] = np.sin(np.pi * 2 * t * f)
+                    case 'square':
+                        self.signal[t_beg: t_end] = scipy.signal.square(t * 2 * np.pi * f, self._ratio_square/100)
+                    case 'gausspulse':
+                        self.signal[t_beg: t_end] = scipy.signal.gausspulse(t, fc=f, bw=self._ratio_gaussian/1000)
+                    case _:
+                        raise ValueError("Unknown ramp function ")
+                self.signal[t_beg: t_end] *= self.amplitude
+                t_beg = t_end
+                t_end = t_end + width
+                f = (idx + 1) * (self._f1_ramp - self._f0_ramp) / self._nb_ramp + self._f0_ramp
+            return True
+        except ValueError as err:
+            self.err_msg = str(err)
+            return False
+
+    def play_ramp(self, event):
+        """
+        Jouer le chirp
+        """
+        self.maj_param_ramp()
+        if self.ramp():
+            sounddevice.play(self.signal, self.Fe)
+        else:
+            wx.LogError(self.err_msg)
+
+    def save_ramp(self, event):
+        """
+        sauvegarde du chirp
+        """
+        self.maj_param_ramp()
+        if self.ramp():
+            nom_fichier = "ramp" + str(self.Fe) + "_"
+            nom_fichier = nom_fichier + "ramp_" + self.fct_ramp +  "_"
+            nom_fichier = nom_fichier + str(self.duree_ramp()) + "ms_"
+            nom_fichier = nom_fichier + str(self.f0_ramp()) + "_" + str(self.f1_ramp())
+            nom_fichier = nom_fichier + str(self.nb_ramp())
+            nom_fichier = nom_fichier + ".wav"
+            with soundfile.SoundFile(nom_fichier,
+                                     mode='w',
+                                     samplerate=int(self.Fe),
+                                     channels=1,
+                                     subtype='FLOAT') as fichier:
+                fichier.write(self.signal)
+        else:
+            wx.LogError(self.err_msg)
+
+    def ajouter_page_rampe(self, name="Ramp"):
+        """
+        création de l'onglet Rampe
+        pour paramétrer les signaux de type rampe chirp 
+        """
+        ctrl = []
+        page = wx.Panel(self.note_book)
+        font = wx.Font(12,
+                       wx.FONTFAMILY_DEFAULT,
+                       wx.FONTSTYLE_ITALIC,
+                       wx.FONTWEIGHT_BOLD)
+        ma_grille = wx.GridSizer(rows=7, cols=2, vgap=20, hgap=20)
+        type_fct = ['sin', 'square', 'gausspulse']
+        self.choix_Fe_ramp = wx.Choice(page, choices=self.val_Fe)
+        self.choix_Fe_ramp.SetSelection(3)
+        self.ajouter_gadget((self.choix_Fe_ramp, 1), ctrl, ma_grille, font)
+        st_texte = wx.StaticText(page, label="Sampling frequency (Hz)")
+        self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+        self.choix_ramp = wx.Choice(page, choices=type_fct)
+        self.choix_ramp.SetSelection(0)
+        self.ajouter_gadget((self.choix_ramp, 1), ctrl, ma_grille, font)
+        st_texte = wx.StaticText(page, label="Function")
+        self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+
+        self.ctrl.append(ctrl)
+        style_texte = wx.SL_HORIZONTAL | wx.SL_LABELS | wx.SL_MIN_MAX_LABELS
+        gadget = wx.Slider(page,
+                           id=SLIDER_F0_RAMP,
+                           value=self.f0_ramp(),
+                           minValue=0,
+                           maxValue=int(self.Fe//2),
+                           style=style_texte,
+                           name="Frequency t=0")
+        self.dico_slider[SLIDER_F0_RAMP] = self.f0_ramp
+        gadget.Bind(wx.EVT_SCROLL,
+                    self.change_slider,
+                    gadget,
+                    SLIDER_F0_RAMP)
+        self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+        st_texte = wx.StaticText(page, label="Initial frequency (Hz)")
+
+        self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+        gadget = wx.Slider(page,
+                           id=SLIDER_F1_RAMP,
+                           value=self.f1_ramp(),
+                           minValue=0,
+                           maxValue=int(self.Fe//2),
+                           style=style_texte,
+                           name="Frequency t=D")
+        self.dico_slider[SLIDER_F1_RAMP] = self.f1_ramp
+        self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
+        gadget.Bind(wx.EVT_SCROLL,
+                    self.change_slider,
+                    gadget,
+                    SLIDER_F1_RAMP)
+        st_texte = wx.StaticText(page, label="Last frequency (Hz)")
+        self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+
+        gadget = wx.Slider(page,
+                           id=SLIDER_NB_RAMP,
+                           value=self.nb_ramp(),
+                           minValue=1,
+                           maxValue=100,
+                           style=style_texte,
+                           name="Frequency t=D")
+        self.dico_slider[SLIDER_NB_RAMP] = self.nb_ramp
+        self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
+        gadget.Bind(wx.EVT_SCROLL,
+                    self.change_slider,
+                    gadget,
+                    SLIDER_NB_RAMP)
+        st_texte = wx.StaticText(page, label="# step")
+        self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+
+        
+        style_texte = wx.SL_HORIZONTAL | wx.SL_LABELS | wx.SL_MIN_MAX_LABELS
+        gadget = wx.Slider(page,
+                             id=SLIDER_DUREE_RAMP,
+                             value=self.duree_chirp(),
+                             minValue=0,
+                             maxValue=10000,
+                             style=style_texte,
+                             name="Duration")
+        self.dico_slider[SLIDER_DUREE_RAMP] = self.duree_ramp
+        gadget.Bind(wx.EVT_SCROLL,
+                    self.change_slider,
+                    gadget,
+                    SLIDER_DUREE_RAMP)
+        self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
+        st_texte = wx.StaticText(page, label="Chirp duration (ms)")
+        self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
+
+        bouton = wx.Button(page, id=BOUTON_SAVE_RAMP)
+        bouton.SetLabel('Save')
+        bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
+        bouton.Bind(wx.EVT_BUTTON, self.save_ramp, bouton)
+        self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
+        bouton = wx.Button(page, id=BOUTON_PLAY_RAMP)
+        bouton.SetLabel('Play')
+        bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
+        bouton.Bind(wx.EVT_BUTTON, self.play_ramp, bouton)
+        self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
+        page.SetSizerAndFit(ma_grille)
+        self.note_book.AddPage(page, name)
+        self.maj_param_ramp()
+        self.ind_page = self.ind_page + 1
+
+
 
 if __name__ == '__main__':
     application = wx.App()
-    my_frame = wx.Frame(None, -1, 'Interface')
+    my_frame = wx.Frame(None, -1, 'Interface', size=(770,360))
     my_plotter = InterfaceGeneration(my_frame)
     my_plotter.interface_generation_fct()
     my_frame.Show()
