@@ -15,6 +15,7 @@ import wx
 import wx.lib.agw.aui as aui
 import fluxaudio
 import fenetrecourbe as fc
+import generation_signal
 
 MIN_TFD_SIZE = 256
 MIN_SPECTRO_SIZE = 256
@@ -39,7 +40,8 @@ SLIDER_BP_VALUE = 4001
 SLIDER_PEAK_DISTANCE = 4002
 
 ID_OPEN_REF = 1101
-ID_LOG = 1102
+ID_SIGGEN = 1102
+ID_LOG = 1103
 CHOICE_PALETTE = 3007
 
 
@@ -122,7 +124,8 @@ class InterfaceAnalyseur(wx.Panel):
                                          aui.AUI_NB_TAB_MOVE |
                                          aui.AUI_NB_MIDDLE_CLICK_CLOSE)
 
-        self.new_event, self.id_evt = wx.lib.newevent.NewEvent()
+        self.new_event_acq, self.id_evt_acq = wx.lib.newevent.NewEvent() # lorsque buffer d'acquisition est plein
+        self.new_event_gen, self.id_evt_gen = wx.lib.newevent.NewEvent() # lorsqu'un signal est généré
         self.parent = parent
         self.init_interface = False
         self.idmenu_audio_in = {-1: -1}
@@ -135,9 +138,10 @@ class InterfaceAnalyseur(wx.Panel):
         self.ind_fichier = 0
         self.ind_page = 0
         self.duration = -1
-        self.flux_audio = fluxaudio.FluxAudio(self.new_event)
+        self.flux_audio = fluxaudio.FluxAudio((self.new_event_acq, self.new_event_gen))
         self.flux_audio_ref = None
         self.oscilloscope = None
+        self.frame_gen_sig = None
         self.log = LogOscillo(None, "Oscilloscope Logger", show=True, passToOld=False)
 
         self.install_menu()
@@ -270,11 +274,12 @@ class InterfaceAnalyseur(wx.Panel):
                          (~wx.MAXIMIZE_BOX))
         self.oscilloscope = fc.PlotNotebook(frame,
                                             self.flux_audio,
-                                            evt_type=self.id_evt)
+                                            evt_type=(self.id_evt_acq, self.id_evt_gen))
         _ = self.oscilloscope.add('Time Signal', type_courbe='time')
-        _ = self.oscilloscope.add('Spectral', type_courbe='dft_modulus')
+        _ = self.oscilloscope.add('Spectrum Module', type_courbe='dft_modulus')
         _ = self.oscilloscope.add('Spectrogram', type_courbe='spectrogram')
         _ = self.oscilloscope.add('Frequency response', type_courbe='Frequency response')
+        _ = self.oscilloscope.add('Spectrum Phase', type_courbe='dft_phase')
         self.flux_audio.courbe = self.oscilloscope
 
         frame.Show()
@@ -314,12 +319,16 @@ class InterfaceAnalyseur(wx.Panel):
              for idx, x in enumerate(self.idmenu_audio_out)]
         barre_menu.Append(menu_periph_out, 'output device')
         menu_about = wx.Menu()
+        _ = menu_about.Append(ID_SIGGEN, 'Signal generators', 'Signal generators')
+        barre_menu.Append(menu_about, '&Tools')
+        menu_about = wx.Menu()
         _ = menu_about.Append(ID_LOG, 'Show log', 'Show log window')
         _ = menu_about.Append(wx.ID_ABOUT, 'About', 'About anaspec')
         barre_menu.Append(menu_about, '&Help')
         self.parent.SetMenuBar(barre_menu)
         self.parent.Bind(wx.EVT_CLOSE, self.close_page)
         self.parent.Bind(wx.EVT_MENU, self.about, id=wx.ID_ABOUT)
+        self.parent.Bind(wx.EVT_MENU, self.generation_sig, id=ID_SIGGEN)
         self.parent.Bind(wx.EVT_MENU, self.show_log, id=ID_LOG)
         self.parent.Bind(wx.EVT_MENU, self.open_wav, id=wx.ID_OPEN)
         self.parent.Bind(wx.EVT_MENU, self.open_wav_ref, id=ID_OPEN_REF)
@@ -327,6 +336,29 @@ class InterfaceAnalyseur(wx.Panel):
         self.parent.Bind(wx.EVT_MENU, self.quitter, id=wx.ID_EXIT)
         self.parent.Bind(wx.EVT_MENU, self.select_audio_in, id=200, id2=299)
         self.parent.Bind(wx.EVT_MENU, self.select_audio_out, id=300, id2=399)
+
+    def generation_sig(self, evt):
+        """
+        Génération se signaux
+        """
+        if self.flux_audio.plotdata is None:
+               wx.MessageBox("First choose peripherical in input device menu", "Error", wx.ICON_ERROR)
+               return
+        if self.frame_gen_sig is None:
+            self.frame_gen_sig = wx.Frame(None, -1, 'Signal generators', size=(770,360))
+            gen_sig = generation_signal.InterfaceGeneration(self.frame_gen_sig, fa=self.flux_audio)
+            gen_sig.interface_generation_fct()
+            self.frame_gen_sig.Bind(wx.EVT_CLOSE, self.hide_gen_sig)
+            my_frame.Show()
+        else:
+            self.frame_gen_sig.Show(True)
+            
+    def hide_gen_sig(self, evt):
+        """
+        on clicl close box hide windows  self.frame_gen_sig 
+        """
+        if self.frame_gen_sig is not None:
+            self.frame_gen_sig.Show(False)
 
     def about(self, evt):
         """
@@ -401,12 +433,16 @@ class InterfaceAnalyseur(wx.Panel):
                 return
             nb_ech = min(son.shape[0], self.flux_audio.plotdata.shape[0])
             self.oscilloscope.page[0].t_beg = self.flux_audio.plotdata.shape[0] - nb_ech
-            self.oscilloscope.page[0].t_end = self.flux_audio.taille_buffer_signal
+            deb = 0
+            if self.oscilloscope.page[0].t_beg>0:
+                deb = self.oscilloscope.page[0].t_beg // 2
+                self.oscilloscope.page[0].t_beg = self.oscilloscope.page[0].t_beg - deb
+            self.oscilloscope.page[0].t_end = self.flux_audio.taille_buffer_signal - deb
             self.oscilloscope.page[0].maj_limite_slider()
             if len(son.shape) == 1:
-                self.flux_audio.plotdata[self.flux_audio.plotdata.shape[0] - nb_ech:,0] += son[:nb_ech]
+                self.flux_audio.plotdata[self.oscilloscope.page[0].t_beg:self.oscilloscope.page[0].t_end,0] = son[:nb_ech]
             else:
-                self.flux_audio.plotdata[self.flux_audio.plotdata.shape[0] - nb_ech:,0] += son[:nb_ech,0]
+                self.flux_audio.plotdata[self.oscilloscope.page[0].t_beg:self.oscilloscope.page[0].t_end,0] = son[:nb_ech,0]
                 if son.shape[1] != self.flux_audio.plotdata.shape[1]:
                     wx.MessageBox("Channel number are not equal. First channel uses", "Warning", wx.ICON_WARNING)
                 elif son.shape[1] == 2:
@@ -538,7 +574,7 @@ class InterfaceAnalyseur(wx.Panel):
                       st_texte,
                       SLIDER_PEAK_DISTANCE)
         self.dico_slider[SLIDER_PEAK_DISTANCE] = (self.flux_audio.set_peak_distance, None)
-
+        # https://dsp.stackexchange.com/questions/36018/dont-window-a-transient-signal
         st_texte = wx.StaticText(page, label="Window")
         self.ajouter_bouton((st_texte, 0), ctrl, ma_grille, font)
         st_texte = wx.ComboBox(page,
@@ -550,7 +586,7 @@ class InterfaceAnalyseur(wx.Panel):
                             font,
                             wx.Centre)
         st_texte.SetSelection(self.type_window.index(
-            self.flux_audio.type_window[0])+1)
+            self.flux_audio.type_window[0]))
         st_texte.Bind(wx.EVT_COMBOBOX,
                       self.change_fenetrage,
                       st_texte,
@@ -1110,8 +1146,9 @@ class InterfaceAnalyseur(wx.Panel):
         Ecoute du signal enregistré
         """
         print("try to play on default output")
-        try:
-            sd.play(self.flux_audio.plotdata, self.flux_audio.Fe, mapping=[1, 2])
+        try:            
+            sd.play(self.flux_audio.plotdata[self.oscilloscope.page[0].t_beg:self.oscilloscope.page[0].t_end, :],
+                    self.flux_audio.Fe, mapping=[1, 2])
         except Exception as e:
             wx.LogError("Cannot play signal :\n",type(e), str(e) )        
 

@@ -14,40 +14,41 @@ import wx
 import wx.lib.agw.aui as aui
 import numpy as np
 import scipy.signal
+import fluxaudio
 
 
 
-BOUTON_SAVE_CHIRP = 4001
-BOUTON_PLAY_CHIRP = 4002
-SLIDER_F0_CHIRP = 4003
-SLIDER_F1_CHIRP = 4004
-SLIDER_DUREE_CHIRP = 4005
+BOUTON_SAVE_CHIRP = 14001
+BOUTON_PLAY_CHIRP = 14002
+SLIDER_F0_CHIRP = 14003
+SLIDER_F1_CHIRP = 14004
+SLIDER_DUREE_CHIRP = 14005
 
-BOUTON_SAVE_SINUS = 5001
-BOUTON_PLAY_SINUS = 5002
-SLIDER_F0_SINUS = 5003
-SLIDER_DUREE_SINUS = 5005
-CASE_REFERENCE = 5006
+BOUTON_SAVE_SINUS = 15001
+BOUTON_PLAY_SINUS = 15002
+SLIDER_F0_SINUS = 15003
+SLIDER_DUREE_SINUS = 15005
+CASE_REFERENCE = 15006
 
-BOUTON_SAVE_RAMP = 8001
+BOUTON_SAVE_RAMP = 18001
 BOUTON_PLAY_RAMP = 8002
-SLIDER_F0_RAMPE_FONCTION = 8003
-SLIDER_F0_RAMP = 8003
-SLIDER_F1_RAMP = 8004
-SLIDER_NB_RAMP = 8005
-SLIDER_DUREE_RAMP = 8006
+SLIDER_F0_RAMPE_FONCTION = 18003
+SLIDER_F0_RAMP = 18003
+SLIDER_F1_RAMP = 18004
+SLIDER_NB_RAMP = 18005
+SLIDER_DUREE_RAMP = 18006
 
-BOUTON_SAVE_SQUARE = 6001
-BOUTON_PLAY_SQUARE = 6002
-SLIDER_F0_SQUARE = 6003
-SLIDER_DUREE_SQUARE = 6005
+BOUTON_SAVE_SQUARE = 16001
+BOUTON_PLAY_SQUARE = 16002
+SLIDER_F0_SQUARE = 16003
+SLIDER_DUREE_SQUARE = 16005
 SLIDER_RAPPORT_CYCLIQUE_SQUARE = 6006
 
-BOUTON_SAVE_GAUSSIAN = 7001
-BOUTON_PLAY_GAUSSIAN = 7002
-SLIDER_F0_GAUSSIAN = 7003
-SLIDER_DUREE_GAUSSIAN = 7005
-SLIDER_RAPPORT_CYCLIQUE_GAUSSIAN = 7006
+BOUTON_SAVE_GAUSSIAN = 17001
+BOUTON_PLAY_GAUSSIAN = 17002
+SLIDER_F0_GAUSSIAN = 17003
+SLIDER_DUREE_GAUSSIAN = 17005
+SLIDER_RAPPORT_CYCLIQUE_GAUSSIAN = 17006
 
 
 
@@ -58,10 +59,11 @@ class InterfaceGeneration(wx.Panel):
     pour les réglages de l'affichage de la tfd,
     pour les réglages de l'affichage du spectrogramme
     """
-    def __init__(self, parent, id_fenetre=-1):
+    def __init__(self, parent, fa=None, id_fenetre=-1):
         """
         membre :
         parent : fenêtre parent
+        fa: fluxaudio à mettre à jour
         note_book : contient les onglets chirp, square, gaussian et sinus
         f0_t0 : fréquence du chirp à t0
         f1_t1 : fréquence du chirp à t1
@@ -104,6 +106,7 @@ class InterfaceGeneration(wx.Panel):
         self.choix_Fe_gaussian =  None
         self.choix_Fe_square =  None
         self.signal = None
+        self.flux = fa
         self.parent.Show()
 
     def f0_t0(self, f=None):
@@ -288,7 +291,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_chirp()
         if self.chirp():
-            sounddevice.play(self.signal, self.Fe)
+            self.play()
         else:
             wx.LogError(self.err_msg)
 
@@ -393,7 +396,10 @@ class InterfaceGeneration(wx.Panel):
         bouton.Bind(wx.EVT_BUTTON, self.save_chirp, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         bouton = wx.Button(page, id=BOUTON_PLAY_CHIRP)
-        bouton.SetLabel('Play')
+        if self.flux is not None:
+            bouton.SetLabel('Update')
+        else:
+            bouton.SetLabel('Play')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.play_chirp, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
@@ -439,7 +445,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_gaussian()
         if self.signal_gaussian():
-            sounddevice.play(self.signal, self.Fe)
+            self.play()
         else:
             wx.LogError(self.err_msg)
 
@@ -519,7 +525,10 @@ class InterfaceGeneration(wx.Panel):
         bouton.Bind(wx.EVT_BUTTON, self.save_gaussian, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         bouton = wx.Button(page, id=BOUTON_PLAY_GAUSSIAN)
-        bouton.SetLabel('Play')
+        if self.flux is not None:
+            bouton.SetLabel('Update')
+        else:
+            bouton.SetLabel('Play')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.play_gaussian, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
@@ -547,7 +556,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_sinus()
         if self.sinus():
-            sounddevice.play(self.signal, self.Fe)
+            self.play()
         else:
             wx.LogError(self.err_msg)
 
@@ -641,7 +650,10 @@ class InterfaceGeneration(wx.Panel):
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font)
 
         bouton = wx.Button(page, id=BOUTON_SAVE_SINUS)
-        bouton.SetLabel('Save')
+        if self.flux is not None:
+            bouton.SetLabel('Update')
+        else:
+            bouton.SetLabel('Play')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.save_sinus, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
@@ -686,13 +698,22 @@ class InterfaceGeneration(wx.Panel):
         else:
             wx.LogError(self.err_msg)
 
+    def play(self):
+        if self.flux is None:
+            sounddevice.play(self.signal, self.Fe)
+        else:
+            if self.Fe == self.flux.Fe:
+                self.flux.update_signal_genere(self.signal)
+            else:
+                wx.MessageBox("Sampling frequency are not equal\n "+ str(self.flux.Fe) + "Hz<> " +str(self.Fe), "Error", wx.ICON_ERROR)
+
     def play_square(self, event):
         """
         Jouer le signal carré
         """
         self.maj_param_square()
         if self.signal_carre():
-            sounddevice.play(self.signal, self.Fe)
+            self.play()
         else:
             wx.LogError(self.err_msg)
 
@@ -772,7 +793,10 @@ class InterfaceGeneration(wx.Panel):
         bouton.Bind(wx.EVT_BUTTON, self.save_square, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         bouton = wx.Button(page, id=BOUTON_PLAY_SQUARE)
-        bouton.SetLabel('Play')
+        if self.flux is not None:
+            bouton.SetLabel('Update')
+        else:
+            bouton.SetLabel('Play')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.play_square, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
@@ -815,6 +839,10 @@ class InterfaceGeneration(wx.Panel):
             width = t_end
             f = self._f0_ramp
             t = self.t_ech[0: width]
+            if self.fct_ramp == 'gausspulse':
+                t = t - t[-1]/2
+
+            # self.t_ech = np.arange(-self._duree_gaussian/2000,self._duree_gaussian/2000,1/self.Fe)
             for idx in range(self._nb_ramp):
                 match self.fct_ramp:
                     case 'sin':
@@ -829,6 +857,8 @@ class InterfaceGeneration(wx.Panel):
                 t_beg = t_end
                 t_end = t_end + width
                 f = (idx + 1) * (self._f1_ramp - self._f0_ramp) / self._nb_ramp + self._f0_ramp
+            if self.flux is not None:
+                self.flux.update_signal_genere(self.signal)
             return True
         except ValueError as err:
             self.err_msg = str(err)
@@ -836,11 +866,12 @@ class InterfaceGeneration(wx.Panel):
 
     def play_ramp(self, event):
         """
-        Jouer le chirp
+        Jouer la rampe
         """
         self.maj_param_ramp()
         if self.ramp():
-            sounddevice.play(self.signal, self.Fe)
+            if self.flux is None:
+                sounddevice.play(self.signal, self.Fe)
         else:
             wx.LogError(self.err_msg)
 
@@ -854,7 +885,7 @@ class InterfaceGeneration(wx.Panel):
             nom_fichier = nom_fichier + "ramp_" + self.fct_ramp +  "_"
             nom_fichier = nom_fichier + str(self.duree_ramp()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_ramp()) + "_" + str(self.f1_ramp())
-            nom_fichier = nom_fichier + str(self.nb_ramp())
+            nom_fichier = nom_fichier + "_" + str(self.nb_ramp())
             nom_fichier = nom_fichier + ".wav"
             with soundfile.SoundFile(nom_fichier,
                                      mode='w',
@@ -963,7 +994,10 @@ class InterfaceGeneration(wx.Panel):
         bouton.Bind(wx.EVT_BUTTON, self.save_ramp, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         bouton = wx.Button(page, id=BOUTON_PLAY_RAMP)
-        bouton.SetLabel('Play')
+        if self.flux is not None:
+            bouton.SetLabel('Update')
+        else:
+            bouton.SetLabel('Play')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.play_ramp, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
