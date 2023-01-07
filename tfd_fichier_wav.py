@@ -115,12 +115,16 @@ class WavAnalysis:
     def localise_freq(self, x, y, graphe):
         idx_freq = self.Fe / self.N
         idx_min, idx_max = graphe.get_xlim()
-        idx_min = int(np.round(idx_min /idx_freq))
-        idx_max = int(np.round(idx_max /idx_freq))
+        y_min, y_max = graphe.get_ylim()
+        idx_min = int(np.round(idx_min /idx_freq))+ self.N // 2
+        idx_max = int(np.round(idx_max /idx_freq))+ self.N // 2
         idx = np.argmin(np.abs(self.val_freq-x))
-        n_min = max(idx - 1000, 0)
-        n_max = min(idx + 1000, self.val_freq.shape[0])
-        idx = np.argmin(np.abs(y - self.val_mod[n_min : n_max])) + n_min
+        n_min = max(idx - 1000, idx_min)
+        n_max = min(idx + 1000, idx_max)
+        print(idx_min, idx_max)
+        print(y_min, y_max)
+        print(n_min, n_max)
+        idx = np.argmin(np.abs(y - self.val_mod[n_min : n_max ]) / (y_max - y_min) +np.abs(x - self.val_freq[n_min : n_max])/(idx_max-idx_min)) + n_min
         return idx
     
 
