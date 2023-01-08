@@ -31,7 +31,7 @@ SLIDER_DUREE_SINUS = 15005
 CASE_REFERENCE = 15006
 
 BOUTON_SAVE_RAMP = 18001
-BOUTON_PLAY_RAMP = 8002
+BOUTON_PLAY_RAMP = 18002
 SLIDER_F0_RAMPE_FONCTION = 18003
 SLIDER_F0_RAMP = 18003
 SLIDER_F1_RAMP = 18004
@@ -306,12 +306,7 @@ class InterfaceGeneration(wx.Panel):
             nom_fichier = nom_fichier + str(self.duree_chirp()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_t0()) + "_" + str(self.f1_t1())
             nom_fichier = nom_fichier + ".wav"
-            with soundfile.SoundFile(nom_fichier,
-                                     mode='w',
-                                     samplerate=int(self.Fe),
-                                     channels=1,
-                                     subtype='FLOAT') as fichier:
-                fichier.write(self.signal)
+            self.on_save(nom_fichier)
         else:
             wx.LogError(self.err_msg)
 
@@ -387,7 +382,7 @@ class InterfaceGeneration(wx.Panel):
                     gadget,
                     SLIDER_DUREE_CHIRP)
         self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
-        st_texte = wx.StaticText(page, label="Chirp duration (ms)")
+        st_texte = wx.StaticText(page, label="Sampling duration (ms)")
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
 
         bouton = wx.Button(page, id=BOUTON_SAVE_CHIRP)
@@ -415,7 +410,8 @@ class InterfaceGeneration(wx.Panel):
         self.t_ech = np.arange(-self._duree_gaussian/2000,self._duree_gaussian/2000,1/self.Fe)
 
     def signal_gaussian(self):
-        self.signal = scipy.signal.gausspulse(self.t_ech, fc=self.f0_gaussian(), bw=self._ratio_gaussian/1000)
+        self.signal = scipy.signal.gausspulse(self.t_ech, fc=self.f0_gaussian(),
+                                              bw=(self._ratio_gaussian/1000*self.Fe)/self.f0_gaussian())
         self.signal *= self.amplitude
         return True
 
@@ -430,12 +426,7 @@ class InterfaceGeneration(wx.Panel):
             nom_fichier = nom_fichier + str(self.f0_gaussian()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_gaussian()) 
             nom_fichier = nom_fichier + ".wav"
-            with soundfile.SoundFile(nom_fichier,
-                                     mode='w',
-                                     samplerate=int(self.Fe),
-                                     channels=1,
-                                     subtype='FLOAT') as fichier:
-                fichier.write(self.signal)
+            self.on_save(nom_fichier)
         else:
             wx.LogError(self.err_msg)
 
@@ -498,7 +489,7 @@ class InterfaceGeneration(wx.Panel):
                     gadget,
                     SLIDER_DUREE_GAUSSIAN)
         self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
-        st_texte = wx.StaticText(page, label="Square wave duration (ms)")
+        st_texte = wx.StaticText(page, label="Sampling duration (ms)")
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
 
         style_texte = wx.SL_HORIZONTAL | wx.SL_LABELS | wx.SL_MIN_MAX_LABELS
@@ -506,7 +497,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_RAPPORT_CYCLIQUE_GAUSSIAN,
                            value=self.ratio_square(),
                            minValue=0,
-                           maxValue=1000,
+                           maxValue=500,
                            style=style_texte,
                            name="Duration")
         self.dico_slider[SLIDER_RAPPORT_CYCLIQUE_GAUSSIAN] = self.ratio_gaussian
@@ -515,7 +506,7 @@ class InterfaceGeneration(wx.Panel):
                     gadget,
                     SLIDER_RAPPORT_CYCLIQUE_GAUSSIAN)
         self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
-        st_texte = wx.StaticText(page, label="Duty cycle (‰)")
+        st_texte = wx.StaticText(page, label="Band width (‰ normalised frequency)")
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
 
 
@@ -570,12 +561,7 @@ class InterfaceGeneration(wx.Panel):
             nom_fichier = nom_fichier + str(self.duree_sinus()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_sinus())
             nom_fichier = nom_fichier + ".wav"
-            with soundfile.SoundFile(nom_fichier,
-                                     mode='w',
-                                     samplerate=int(self.Fe),
-                                     channels=1,
-                                     subtype='FLOAT') as fichier:
-                fichier.write(self.signal)
+            self.on_save(nom_fichier)
         else:
             wx.LogError(self.err_msg)
 
@@ -636,7 +622,7 @@ class InterfaceGeneration(wx.Panel):
                     gadget,
                     SLIDER_DUREE_SINUS)
         self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
-        st_texte = wx.StaticText(page, label="Sinusoide duration (ms)")
+        st_texte = wx.StaticText(page, label="Sampling duration (ms)")
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
         case = wx.CheckBox(page, -1, 'Add 1000Hz frequency reference')
         case.SetValue(self.sinus_reference)
@@ -650,15 +636,15 @@ class InterfaceGeneration(wx.Panel):
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font)
 
         bouton = wx.Button(page, id=BOUTON_SAVE_SINUS)
-        if self.flux is not None:
-            bouton.SetLabel('Update')
-        else:
-            bouton.SetLabel('Play')
+        bouton.SetLabel('Save')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.save_sinus, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         bouton = wx.Button(page, id=BOUTON_PLAY_SINUS)
-        bouton.SetLabel('Play')
+        if self.flux is not None:
+            bouton.SetLabel('Update')
+        else:
+            bouton.SetLabel('Play')
         bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
         bouton.Bind(wx.EVT_BUTTON, self.play_sinus, bouton)
         self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
@@ -689,12 +675,7 @@ class InterfaceGeneration(wx.Panel):
             nom_fichier = nom_fichier + str(self.f0_square()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_square()) 
             nom_fichier = nom_fichier + ".wav"
-            with soundfile.SoundFile(nom_fichier,
-                                     mode='w',
-                                     samplerate=int(self.Fe),
-                                     channels=1,
-                                     subtype='FLOAT') as fichier:
-                fichier.write(self.signal)
+            self.on_save(nom_fichier)
         else:
             wx.LogError(self.err_msg)
 
@@ -702,7 +683,10 @@ class InterfaceGeneration(wx.Panel):
         if self.flux is None:
             sounddevice.play(self.signal, self.Fe)
         else:
-            if self.Fe == self.flux.Fe:
+            if str(float(self.Fe)) in self.flux.frequence_dispo:
+                if self.Fe != self.flux.Fe:
+                    self.flux.set_frequency(self.Fe)
+                    wx.MessageBox("Update Sampling frequency to "+ str(self.flux.Fe) + "Hz", "Warning", wx.ICON_WARNING)
                 self.flux.update_signal_genere(self.signal)
             else:
                 wx.MessageBox("Sampling frequency are not equal\n "+ str(self.flux.Fe) + "Hz<> " +str(self.Fe), "Error", wx.ICON_ERROR)
@@ -766,7 +750,7 @@ class InterfaceGeneration(wx.Panel):
                     gadget,
                     SLIDER_DUREE_SQUARE)
         self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
-        st_texte = wx.StaticText(page, label="Square wave duration (ms)")
+        st_texte = wx.StaticText(page, label="Sampling duration (ms)")
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
 
         style_texte = wx.SL_HORIZONTAL | wx.SL_LABELS | wx.SL_MIN_MAX_LABELS
@@ -807,18 +791,17 @@ class InterfaceGeneration(wx.Panel):
         self.ind_page = self.ind_page + 1
 
 
-    def on_save(self, _):
+    def on_save(self, nom_fichier):
         """
         Début/Fin de l'acquisition
         """
-        self.ind_fichier = self.ind_fichier + 1
-
-        with soundfile.SoundFile("buffer" + str(self.ind_fichier) + ".wav",
-                                 mode='w',
-                                 samplerate=self.Fe,
-                                 channels=1,
-                                 subtype='FLOAT') as fichier:
-            fichier.write(self.flux_audio.plotdata)
+        with soundfile.SoundFile(nom_fichier,
+                                    mode='w',
+                                    samplerate=int(self.Fe),
+                                    channels=1,
+                                    subtype='FLOAT') as fichier:
+            fichier.write(self.signal)
+        wx.MessageBox("save as "+ nom_fichier, "Warning", wx.ICON_WARNING)
 
 
     def maj_param_ramp(self):
@@ -832,8 +815,6 @@ class InterfaceGeneration(wx.Panel):
 
     def ramp(self):
         try:
-            
-            print(self.t_ech.shape[0], self._nb_ramp, self._f0_ramp, self.fct_ramp)
             t_beg = 0
             t_end = self.t_ech.shape[0] // self._nb_ramp
             width = t_end
@@ -887,12 +868,7 @@ class InterfaceGeneration(wx.Panel):
             nom_fichier = nom_fichier + str(self.f0_ramp()) + "_" + str(self.f1_ramp())
             nom_fichier = nom_fichier + "_" + str(self.nb_ramp())
             nom_fichier = nom_fichier + ".wav"
-            with soundfile.SoundFile(nom_fichier,
-                                     mode='w',
-                                     samplerate=int(self.Fe),
-                                     channels=1,
-                                     subtype='FLOAT') as fichier:
-                fichier.write(self.signal)
+            self.on_save(nom_fichier)
         else:
             wx.LogError(self.err_msg)
 
@@ -985,7 +961,7 @@ class InterfaceGeneration(wx.Panel):
                     gadget,
                     SLIDER_DUREE_RAMP)
         self.ajouter_gadget((gadget, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP|wx.LEFT)
-        st_texte = wx.StaticText(page, label="Chirp duration (ms)")
+        st_texte = wx.StaticText(page, label="Sampling duration (ms)")
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
 
         bouton = wx.Button(page, id=BOUTON_SAVE_RAMP)

@@ -6,12 +6,14 @@ pour le spectrogramme, sélection de la bande de fréquence, du nombre
 d'échantillon, du recouvrement, du type de fenêtrage
 """
 # pylint: disable=maybe-no-member
+from pickle import NONE
 import sys
 import ctypes.wintypes
 import numpy as np
 import soundfile
 import sounddevice as sd
 import wx
+import wx.adv
 import wx.lib.agw.aui as aui
 import fluxaudio
 import fenetrecourbe as fc
@@ -41,7 +43,9 @@ SLIDER_PEAK_DISTANCE = 4002
 
 ID_OPEN_REF = 1101
 ID_SIGGEN = 1102
-ID_LOG = 1103
+ID_ZEROPADDING = 1103
+ID_ZEROPADDING_CENTER = 1104
+ID_LOG = 1105
 CHOICE_PALETTE = 3007
 
 
@@ -84,11 +88,57 @@ def disable_quick_edit_mode():
 
 class LogOscillo(wx.LogWindow):
     def __init__(self,pParent, szTitle, show=True, passToOld=True):
-        wx.LogWindow.__init__(self, pParent, szTitle, show, passToOld)
+        wx.LogWindow.__init__(self, pParent,  szTitle, show, passToOld)
+        self.GetFrame().Move(0,280)
     
     def OnFrameClose(self, frame):
         self.Show(False)
         return False
+
+
+#---------------------------------------------------------------------------
+
+class MySplashScreen(wx.adv.SplashScreen):
+    """
+    Create a splash screen widget.
+    https://wiki.wxpython.org/How%20to%20create%20a%20splash%20screen%20%28Phoenix%29
+    """
+    def __init__(self, parent=None):
+
+        #------------
+
+        # This is a recipe to a the screen.
+        # Modify the following variables as necessary.
+        bitmap = wx.Bitmap(name="anaspec.jpg", type=wx.BITMAP_TYPE_JPEG)
+        splash = wx.adv.SPLASH_CENTRE_ON_SCREEN | wx.adv.SPLASH_TIMEOUT
+        duration = 3000 # milliseconds
+
+        # Call the constructor with the above arguments
+        # in exactly the following order.
+        super(MySplashScreen, self).__init__(bitmap=bitmap,
+                                             splashStyle=splash,
+                                             milliseconds=duration,
+                                             parent=None,
+                                             id=-1,
+                                             pos=wx.DefaultPosition,
+                                             size=wx.DefaultSize,
+                                             style=wx.STAY_ON_TOP |
+                                                   wx.BORDER_NONE)
+
+        self.Bind(wx.EVT_CLOSE, self.OnExit)
+
+    #-----------------------------------------------------------------------
+
+    def OnExit(self, event):
+        """
+        ...
+        """
+
+        # The program will freeze without this line.
+        event.Skip()  # Make sure the default handler runs too...
+        self.Hide()
+
+
 
 class InterfaceAnalyseur(wx.Panel):
     """
@@ -128,10 +178,12 @@ class InterfaceAnalyseur(wx.Panel):
         self.new_event_gen, self.id_evt_gen = wx.lib.newevent.NewEvent() # lorsqu'un signal est généré
         self.parent = parent
         self.init_interface = False
+        self.menu_periph_in =  None
+        self.menu_periph_out =  None
         self.idmenu_audio_in = {-1: -1}
         self.idmenu_audio_out = {-1: -1}
-        self.idx_periph_in = None
-        self.idx_periph_out = None
+        self.idx_periph_in = -1
+        self.idx_periph_out = -1
         self.dico_slider = None
         self.dico_label = None
         self.ctrl = None
@@ -142,7 +194,7 @@ class InterfaceAnalyseur(wx.Panel):
         self.flux_audio_ref = None
         self.oscilloscope = None
         self.frame_gen_sig = None
-        self.log = LogOscillo(None, "Oscilloscope Logger", show=True, passToOld=False)
+        self.log = LogOscillo(self, "Oscilloscope Logger", show=True, passToOld=False)
 
         self.install_menu()
         self.parent.Show()
@@ -189,6 +241,40 @@ class InterfaceAnalyseur(wx.Panel):
         self.choix_freq =  None # liste de choix pour les fréquences
         self.choix_palette = None # liste des palettes disponibles pour l'affichage du spectrogramme
         self.samp_in_progress = False
+        self.prepare_acquisition()
+
+    def prepare_acquisition(self, nom_periph_in=None):
+        if nom_periph_in is None:
+            nb_freq = 0
+            idx_best = -1
+            name_best = None
+            for idx, nom_periph_in in enumerate(self.idmenu_audio_in):
+                self.idx_periph_in = self.idmenu_audio_in[nom_periph_in]
+                nb = self.flux_audio.capacite_periph_in(self.liste_periph, self.idx_periph_in)
+                if nb > nb_freq:
+                    nb_freq = nb
+                    name_best = nom_periph_in
+                    idx_best = idx
+            self.menu_periph_in.Check(idx_best+200, True)
+        else:
+            name_best = nom_periph_in
+        self.idx_periph_in = idx_best
+        self.flux_audio.capacite_periph_in(self.liste_periph, self.idx_periph_in)
+        self.flux_audio.nb_canaux = 1 # forcer à 1 pour audiocallback_inself.liste_periph[self.idx_periph_in]["max_input_channels"]
+        self.flux_audio.set_frequency(self.liste_periph[self.idx_periph_in]["default_samplerate"])
+        if not self.init_interface:
+            self.interface_acquisition()
+            self.init_interface = True
+        if self.oscilloscope:
+            self.oscilloscope.page[0].t_beg = self.flux_audio.taille_buffer_signal - self.flux_audio.nb_ech_fenetre
+            self.oscilloscope.page[0].t_end = self.flux_audio.taille_buffer_signal
+        if self.choix_freq is not None:
+            self.maj_choix_freq()
+        wx.LogMessage("Channel : " + str(self.flux_audio.nb_canaux) + " Buffer : " + str(self.flux_audio.taille_buffer_signal))
+        if self.oscilloscope:
+            self.oscilloscope.maj_limite_slider()
+
+
 
     def select_audio_in(self, event):
         """
@@ -203,23 +289,7 @@ class InterfaceAnalyseur(wx.Panel):
         id_fenetre = event.GetId()
         obj.Check(id_fenetre, True)
         nom_periph_in = obj.GetLabel(id_fenetre)
-        if nom_periph_in in self.idmenu_audio_in:
-            self.idx_periph_in = self.idmenu_audio_in[nom_periph_in]
-            self.flux_audio.nb_canaux = self.liste_periph[self.idx_periph_in]["max_input_channels"]
-            self.flux_audio.set_frequency(self.liste_periph[self.idx_periph_in]["default_samplerate"])
-            self.flux_audio.capacite_periph_in(self.liste_periph, self.idx_periph_in)
-            self.flux_audio.init_data_courbe()
-        if not self.init_interface:
-            self.interface_acquisition()
-            self.init_interface = True
-        if self.oscilloscope:
-            self.oscilloscope.page[0].t_beg = self.flux_audio.taille_buffer_signal - self.flux_audio.nb_ech_fenetre
-            self.oscilloscope.page[0].t_end = self.flux_audio.taille_buffer_signal
-        if self.choix_freq is not None:
-            self.maj_choix_freq()
-        wx.LogMessage("Channel : " + str(self.flux_audio.nb_canaux) + " Buffer : " + str(self.flux_audio.taille_buffer_signal))
-        if self.oscilloscope:
-            self.oscilloscope.maj_limite_slider()
+        self.prepare_acquisition(nom_periph_in)
 
     def disable_item_check(self, indexe=1):
         """
@@ -236,17 +306,22 @@ class InterfaceAnalyseur(wx.Panel):
         """
         fonction appelée lorsqu'un périphérique
         est sélectionné dans le menu audio_out :
-        activation de l'interface d'acquisition et
-        ajout d'une marque sur l'article sélectionné
+        activation ou désactivation de la sortie d'acquisition et
+        ajout ou retrait d'une marque sur l'article sélectionné
         """
         obj = event.GetEventObject()
-        self.disable_item_check(2)
         id_fenetre = event.GetId()
-        obj.Check(id_fenetre, True)
         nom_periph_out = obj.GetLabel(id_fenetre)
-        if nom_periph_out in self.idmenu_audio_out:
-            self.idx_periph_out = self.idmenu_audio_out[nom_periph_out]
-            sd.default.device[1] = self.idx_periph_out
+        if self.idx_periph_out == self.idmenu_audio_out[nom_periph_out]:
+            self.disable_item_check(2)
+            self.idx_periph_out = -1
+            self.flux_audio.stream_out = None
+            return
+        self.disable_item_check(2)
+        obj.Check(id_fenetre, True)
+        self.idx_periph_out = self.idmenu_audio_out[nom_periph_out]
+        sd.default.device[1] = self.idx_periph_out
+        
 
     def interface_acquisition(self):
         """
@@ -269,6 +344,7 @@ class InterfaceAnalyseur(wx.Panel):
         self.note_book.SetSize(self.parent.GetClientSize())
         frame = wx.Frame(None, -1,
                          'Oscilloscope',
+                         pos=(650,0), size=(800,800),
                          style=wx.DEFAULT_FRAME_STYLE &
                          (~wx.CLOSE_BOX) &
                          (~wx.MAXIMIZE_BOX))
@@ -281,7 +357,7 @@ class InterfaceAnalyseur(wx.Panel):
         _ = self.oscilloscope.add('Frequency response', type_courbe='Frequency response')
         _ = self.oscilloscope.add('Spectrum Phase', type_courbe='dft_phase')
         self.flux_audio.courbe = self.oscilloscope
-
+        self.oscilloscope.set_interface(self)
         frame.Show()
 
 
@@ -309,16 +385,19 @@ class InterfaceAnalyseur(wx.Panel):
         _ = menu_fichier.Append(wx.ID_EXIT, 'Quit', "exit program")
         barre_menu.Append(menu_fichier, '&File')
         _ = wx.Menu()
-        menu_periph_in = wx.Menu()
+        self.menu_periph_in = wx.Menu()
         self.idmenu_perih = {-1: -1}
-        _ = [menu_periph_in.AppendCheckItem(idx+200, x)
-             for idx, x in enumerate(self.idmenu_audio_in)]
-        barre_menu.Append(menu_periph_in, 'input device')
-        menu_periph_out = wx.Menu()
-        _ = [menu_periph_out.AppendCheckItem(idx+300, x)
-             for idx, x in enumerate(self.idmenu_audio_out)]
-        barre_menu.Append(menu_periph_out, 'output device')
+        self.liste_periph_in = [self.menu_periph_in.AppendCheckItem(idx+200, x)
+                                for idx, x in enumerate(self.idmenu_audio_in)]
+        barre_menu.Append(self.menu_periph_in, 'input device')
+
+        self.menu_periph_out = wx.Menu()
+        self.liste_periph_out = [self.menu_periph_out.AppendCheckItem(idx+300, x)
+                                 for idx, x in enumerate(self.idmenu_audio_out)]
+        barre_menu.Append(self.menu_periph_out, 'output device')
         menu_about = wx.Menu()
+        _ = menu_about.Append(ID_ZEROPADDING, 'Zero padding', 'Zero padding')
+        _ = menu_about.Append(ID_ZEROPADDING_CENTER, 'Zero padding center', 'Zero padding center')
         _ = menu_about.Append(ID_SIGGEN, 'Signal generators', 'Signal generators')
         barre_menu.Append(menu_about, '&Tools')
         menu_about = wx.Menu()
@@ -326,9 +405,12 @@ class InterfaceAnalyseur(wx.Panel):
         _ = menu_about.Append(wx.ID_ABOUT, 'About', 'About anaspec')
         barre_menu.Append(menu_about, '&Help')
         self.parent.SetMenuBar(barre_menu)
+        self.disable_item_check(2)
         self.parent.Bind(wx.EVT_CLOSE, self.close_page)
         self.parent.Bind(wx.EVT_MENU, self.about, id=wx.ID_ABOUT)
         self.parent.Bind(wx.EVT_MENU, self.generation_sig, id=ID_SIGGEN)
+        self.parent.Bind(wx.EVT_MENU, self.zero_padding, id=ID_ZEROPADDING)
+        self.parent.Bind(wx.EVT_MENU, self.zero_padding, id=ID_ZEROPADDING_CENTER)
         self.parent.Bind(wx.EVT_MENU, self.show_log, id=ID_LOG)
         self.parent.Bind(wx.EVT_MENU, self.open_wav, id=wx.ID_OPEN)
         self.parent.Bind(wx.EVT_MENU, self.open_wav_ref, id=ID_OPEN_REF)
@@ -359,6 +441,25 @@ class InterfaceAnalyseur(wx.Panel):
         """
         if self.frame_gen_sig is not None:
             self.frame_gen_sig.Show(False)
+
+    def zero_padding(self, event):
+        """
+        zero padding
+        https://dsp.stackexchange.com/questions/741/why-should-i-zero-pad-a-signal-before-taking-the-fourier-transform
+        """
+        if self.flux_audio.plotdata is None:
+               wx.MessageBox("First choose peripherical in input device menu", "Error", wx.ICON_ERROR)
+               return
+        if event.GetId() == ID_ZEROPADDING:
+            self.flux_audio.zero_padding(center=False)
+        else:
+            self.flux_audio.zero_padding(center=True)
+        self.oscilloscope.set_t_max(self.flux_audio.taille_buffer_signal)
+        self.oscilloscope.set_t_beg(0)
+        self.oscilloscope.set_t_end(self.flux_audio.taille_buffer_signal)
+        self.oscilloscope.maj_limite_slider()
+        
+
 
     def about(self, evt):
         """
@@ -422,27 +523,27 @@ class InterfaceAnalyseur(wx.Panel):
         de la même manière que l'acquisition
         """
         if self.flux_audio.plotdata is None:
-               wx.MessageBox("First choose peripherical in input device menu", "Error", wx.ICON_ERROR)
-               return
+            wx.MessageBox("First choose peripherical in input device menu", "Error", wx.ICON_ERROR)
+            return
         nom_fichier_son = wx.FileSelector("Open wave file",wildcard="*.wav")
         if nom_fichier_son.strip():
             self.set_window_size()
             son , Fe = soundfile.read(nom_fichier_son)
-            if self.flux_audio.Fe != Fe:
-                wx.MessageBox("Sampling frequency are not equal\n "+ str(self.flux_audio.Fe) + "Hz<> " +str(Fe), "Error", wx.ICON_ERROR)
+            if str(float(Fe)) not in self.flux_audio.frequence_dispo:
+                wx.MessageBox("Sampling not available\nTry to change audio device in "+ str(self.flux_audio.Fe) + "Hz<> " +str(Fe), "Error", wx.ICON_ERROR)
                 return
-            nb_ech = min(son.shape[0], self.flux_audio.plotdata.shape[0])
-            self.oscilloscope.page[0].t_beg = self.flux_audio.plotdata.shape[0] - nb_ech
-            deb = 0
-            if self.oscilloscope.page[0].t_beg>0:
-                deb = self.oscilloscope.page[0].t_beg // 2
-                self.oscilloscope.page[0].t_beg = self.oscilloscope.page[0].t_beg - deb
-            self.oscilloscope.page[0].t_end = self.flux_audio.taille_buffer_signal - deb
-            self.oscilloscope.page[0].maj_limite_slider()
+            self.flux_audio.set_frequency(Fe)
+            self.maj_choix_freq()
+            nb_ech = son.shape[0]
+            self.oscilloscope.set_t_max(nb_ech)
+            self.oscilloscope.set_t_beg(0)
+            self.oscilloscope.set_t_end(nb_ech)
+            self.flux_audio.init_data_courbe(nb_ech)
+            self.oscilloscope.maj_limite_slider()
             if len(son.shape) == 1:
-                self.flux_audio.plotdata[self.oscilloscope.page[0].t_beg:self.oscilloscope.page[0].t_end,0] = son[:nb_ech]
+                self.flux_audio.plotdata[:,0] = son[:nb_ech]
             else:
-                self.flux_audio.plotdata[self.oscilloscope.page[0].t_beg:self.oscilloscope.page[0].t_end,0] = son[:nb_ech,0]
+                self.flux_audio.plotdata[:,0] = son[:nb_ech,0]
                 if son.shape[1] != self.flux_audio.plotdata.shape[1]:
                     wx.MessageBox("Channel number are not equal. First channel uses", "Warning", wx.ICON_WARNING)
                 elif son.shape[1] == 2:
@@ -1150,7 +1251,7 @@ class InterfaceAnalyseur(wx.Panel):
             sd.play(self.flux_audio.plotdata[self.oscilloscope.page[0].t_beg:self.oscilloscope.page[0].t_end, :],
                     self.flux_audio.Fe, mapping=[1, 2])
         except Exception as e:
-            wx.LogError("Cannot play signal :\n",type(e), str(e) )        
+            wx.LogError("Cannot play signal :\n" + str(e) )        
 
 
     def on_start_stop(self, event):
@@ -1171,12 +1272,14 @@ class InterfaceAnalyseur(wx.Panel):
             self.set_window_size()
             # self.set_time_length()
             self.oscilloscope.draw_all_axis()
-            if not self.flux_audio.open_stream(self.idx_periph_in):
+            if not self.flux_audio.open_stream_in(self.idx_periph_in):
                 self.disable_item_check()
                 wx.MessageBox("Cannot opened input device : input disable",
                               "Error",
                               wx.ICON_WARNING)
                 return
+            if self.idx_periph_out != -1:
+                self.flux_audio.open_stream_out(self.idx_periph_out)
             self.update_spectro_interface()
             self.update_tfd_interface()
             for page in self.oscilloscope.page:
@@ -1212,7 +1315,12 @@ class InterfaceAnalyseur(wx.Panel):
 
 if __name__ == '__main__':
     application = wx.App()
-    my_frame = wx.Frame(None, -1, 'Interface',size=(660,330))
+    MySplash = MySplashScreen()
+    MySplash.CenterOnScreen(wx.BOTH)
+    MySplash.Show(True)
+
+
+    my_frame = wx.Frame(None, -1, 'Interface',pos=(0,0), size=(660,280))
     my_plotter = InterfaceAnalyseur(my_frame)
     my_frame.Show()
     

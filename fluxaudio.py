@@ -1,3 +1,4 @@
+from ast import Try
 from pickle import NONE
 import queue
 import sys
@@ -53,6 +54,13 @@ class Signal:
         self.spec_selec = None
         self.freq_response = None
         self.offset_synchro = 1 # décalage entre signal et référence
+
+    def init_data(self, nb_ech=None):
+        if nb_ech is None:
+            self.taille_buffer_signal = int(10 * self.Fe)   
+        else:
+            self.taille_buffer_signal = nb_ech
+        self.plotdata = np.zeros((self.taille_buffer_signal, self.nb_canaux))
 
     def set_bp_level(self, val=None):
         if val is not None and -10 <= val <=-1:
@@ -124,6 +132,19 @@ class Signal:
             self.overlap_spectro = recou
         return self.overlap_spectro
 
+    def zero_padding(self, center=False):
+        n = np.log2(self.taille_buffer_signal)
+        prev_size = self.taille_buffer_signal
+        if n == np.ceil(n):
+            n = n + 1
+        temp = self.plotdata.copy()
+        self.init_data(int(2 ** np.ceil(n)))
+        if center:
+            diff_size = self.taille_buffer_signal - prev_size
+            self.plotdata[diff_size // 2 :temp.shape[0] + diff_size // 2,:]= temp
+        else:
+            self.plotdata[0:temp.shape[0],:]= temp
+
     def compute_spectrum(self):
         self.fft = np.fft.fft(self.plotdata)
         self.frequency =  np.arange(0.0, self.fft.shape[0]//2) * self.Fe / self.fft.shape[0]
@@ -164,21 +185,24 @@ class FluxAudio(Signal):
         global FLUX_AUDIO
         FLUX_AUDIO = self
         NEW_EVENT_ACQ = n_evt[0]
+        self.stream_in = None
+        self.stream_out = None
         self.NEW_EVENT_GEN = n_evt[1]
         self.file_attente = queue.Queue()
+        self.file_attente_out = queue.Queue()
         self.courbe = None
         self.mapping = None
         self.nb_data = 0
         self.simulate =  False
-        self.nb_canaux = canaux
         self.Fe = freq
         self.courbe = None
-        self.stream = None
         self.duration = -1
         self.tps_refresh = 0.1
         self.frequence_dispo =  [] # frequence possible sur le périphérique
         self.max_canaux =  0 # nombre maximum de canaux disponiobles pour la numérisation
         self.simulate =  False
+        self._decimale =  1
+        self._mantisse = 1
 
     def get_device(self):
         return sd.query_devices()
@@ -194,16 +218,18 @@ class FluxAudio(Signal):
         return format(val, self._format)
 
 
-    def init_data_courbe(self):
-        self.taille_buffer_signal = int(10 * self.Fe)
-        self.plotdata = np.zeros((self.taille_buffer_signal, self.nb_canaux))
+    def init_data_courbe(self, nb_ech=None):
+        if nb_ech is None:
+            self.taille_buffer_signal = int(10 * self.Fe)   
+        else:
+            self.taille_buffer_signal = nb_ech
+        self.init_data(nb_ech)
         self.mapping = [c-1 for c in range(self.nb_canaux)]
 
     def set_frequency(self, freq_ech=None):
         if freq_ech != None:
             self.Fe = freq_ech
-            self.taille_buffer_signal = int(10 * self.Fe)
-            self.plotdata = np.zeros((self.taille_buffer_signal, self.nb_canaux))
+            self.init_data_courbe()
             if self.f_min > self.Fe/2:
                 self.f_min = self.Fe//2 - 1
             if self.f_max > self.Fe//2:
@@ -221,51 +247,69 @@ class FluxAudio(Signal):
         self.frequence_dispo.append(str(liste_periph[device_idx]['default_samplerate']))
         self.max_canaux = liste_periph[device_idx]['max_input_channels']
         self.nb_canaux = self.max_canaux
+        # forcer un seul canal
+        self.nb_canaux = 1
         for freq in frequence_num:
             try:
-                self.stream = sd.InputStream(
+                self.stream_in = sd.InputStream(
                     device=device_idx, channels=self.nb_canaux,
                     samplerate=freq, callback=audio_callback)
-                self.stream.start()
-                self.stream.close()
+                self.stream_in.start()
+                self.stream_in.close()
                 if str(freq) not in self.frequence_dispo:
                     self.frequence_dispo.append(str(freq))
             except:
                 pass
-        print(self.frequence_dispo)
+        return len(self.frequence_dispo)
 
-
-    def open_stream(self, device_idx):
+    def open_stream_in(self, device_idx):
         self.init_data_courbe()
         self.file_attente = queue.Queue()
-        self.stream = sd.InputStream(
-            device=device_idx, channels=self.nb_canaux,
-            samplerate=self.Fe, callback=audio_callback)
+        self.stream_in = sd.InputStream(
+               device=device_idx, channels=self.nb_canaux,
+               samplerate=self.Fe, callback=audio_callback)
         self.nb_data = 0
-        self.stream.start()
+        self.stream_in.start()
         return True
 
+    def open_stream_out(self, device_idx):
+        self.file_attente_out = queue.Queue()
+        self.file_attente_out.put(np.zeros(shape=(5000,1),dtype=np.float64))
+        self.file_attente_out.put(np.zeros(shape=(5000,1),dtype=np.float64))
+        self.file_attente_out.put(np.zeros(shape=(5000,1),dtype=np.float64))
+        try:
+            self.stream_out = sd.OutputStream(
+                    samplerate=self.Fe,
+                    device=device_idx, channels=1,
+                    callback=audio_callback_out)
+            self.nb_data_out = 0
+            self.stream_out.start()
+            return True
+        except:
+           self.stream_out = None
+        return False
+
     def close(self):
-        self.stream.stop()
-        self.stream.close()
+        self.stream_in.stop()
+        self.stream_in.close()
+        if self.stream_out is not None:
+            self.stream_out.stop()
+            self.stream_out.close()
+            self.stream_out =  None
+
 
     def update_signal_genere(self, son):
-        nb_ech = min(son.shape[0], self.plotdata.shape[0])
-        t_beg = self.plotdata.shape[0] - nb_ech
-        deb = 0
-        if t_beg>0:
-            deb = t_beg // 2
-            t_beg = t_beg - deb
-        t_end = self.taille_buffer_signal - deb
+        nb_ech = son.shape[0]
+        self.init_data(nb_ech)
         if len(son.shape) == 1:
-            self.plotdata[t_beg:t_end,0] = son[:nb_ech]
+            self.plotdata[:,0] = son[:]
         else:
-            self.flux_audio.plotdata[t_beg:t_end,0] = son[:nb_ech,0]
+            self.flux_audio.plotdata[:,0] = son[:,0]
             if son.shape[1] != self.plotdata.shape[1]:
                 wx.MessageBox("Channel number are not equal. First channel uses", "Warning", wx.ICON_WARNING)
             elif son.shape[1] == 2:
                 self.plotdata[self.plotdata.shape[0]-nb_ech:,1] += son[:nb_ech,1] 
-        evt = self.NEW_EVENT_GEN(attr1=t_beg, attr2=t_end)
+        evt = self.NEW_EVENT_GEN(attr1=0, attr2=nb_ech)
         # Envoi de l'événement à la fenêtre chargée du tracé
         wx.PostEvent(FLUX_AUDIO.courbe, evt)
 
@@ -294,9 +338,28 @@ class FluxAudio(Signal):
                 raise ValueError("Should not happen")
         return self.nb_data
 
+def audio_callback_out(outdata, frames, time, status):
+    # assert frames == args.blocksize
+    if status.output_underflow:
+        print('Output underflow: increase blocksize?')
+        outdata.fill(0)
+    assert not status
+    try:
+        data = FLUX_AUDIO.file_attente_out.get()
+    except queue.Empty as e:
+        print('Buffer is empty: increase buffersize?')
+        outdata[:,0].fill(0)
+        return
+        # raise sd.CallbackAbort from e
+    if data.shape[0] < outdata.shape[0]:
+        outdata[:len(data)] = data
+        outdata[len(data):].fill(0)
+        return
+    else:
+        outdata[:,0] = data[:outdata.shape[0],0]
 
 def audio_callback(indata, _frames, _time, status):
-    """Fonction appelée lorsque des données audio sont disponibles."""
+    """Fonction appelée lorsque des données audio in sont disponibles."""
     if status:
         print(status, file=sys.stderr)
     # Copie des données dans la file:
@@ -308,10 +371,12 @@ def audio_callback(indata, _frames, _time, status):
         FLUX_AUDIO.file_attente.put(x[:,FLUX_AUDIO.mapping])
     else:
         FLUX_AUDIO.file_attente.put(indata[:,FLUX_AUDIO.mapping])
-    # FLUX_AUDIO.file_attente.put(x[:,FLUX_AUDIO.mapping])
+        if FLUX_AUDIO.stream_out is not None:
+            FLUX_AUDIO.file_attente_out.put(3*indata[:,FLUX_AUDIO.mapping])
+     # FLUX_AUDIO.file_attente.put(x[:,FLUX_AUDIO.mapping])
     if FLUX_AUDIO.courbe.evt_process:
         # Création d'un événement
         FLUX_AUDIO.courbe.evt_process = False
-        evt = NEW_EVENT(attr1="audio_callback", attr2=0)
+        evt = NEW_EVENT_ACQ(attr1="audio_callback", attr2=0)
         # Envoi de l'événement à la fenêtre chargée du tracé
         wx.PostEvent(FLUX_AUDIO.courbe, evt)
