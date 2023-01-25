@@ -2,6 +2,7 @@ from ast import Try
 from pickle import NONE
 import queue
 import sys
+from warnings import catch_warnings
 
 import numpy as np
 import sounddevice as sd
@@ -48,7 +49,7 @@ class Signal:
         self.set_k_max(self.f_max)
         self.f_min_spectro = 0
         self.f_max_spectro = self.Fe // 2
-        self.type_window = ['boxcar']
+        self.type_window = 'boxcar'
         self.fft = None # pour le signal de référence
         self.frequency =  None # pour le signal de référence
         self.spec_selec = None
@@ -214,6 +215,7 @@ class FluxAudio(Signal):
         nb_dig = int(self._mantisse) - int(self._decimale)
         if nb_dig <= 0:
             nb_dig = 1
+        nb_dig = nb_dig + 1
         self._format =  '.' + str(nb_dig) + 'e'
         return format(val, self._format)
 
@@ -265,12 +267,16 @@ class FluxAudio(Signal):
     def open_stream_in(self, device_idx):
         self.init_data_courbe()
         self.file_attente = queue.Queue()
-        self.stream_in = sd.InputStream(
+        try:
+            self.stream_in = sd.InputStream(
                device=device_idx, channels=self.nb_canaux,
                samplerate=self.Fe, callback=audio_callback)
-        self.nb_data = 0
-        self.stream_in.start()
-        return True
+            self.nb_data = 0
+            self.stream_in.start()
+            return True
+        except:
+            self.stream_in = None
+            return False
 
     def open_stream_out(self, device_idx):
         self.file_attente_out = queue.Queue()
@@ -300,6 +306,10 @@ class FluxAudio(Signal):
 
     def update_signal_genere(self, son):
         nb_ech = son.shape[0]
+        attr1 = 0
+        attr2 = self.plotdata.shape[0]
+        if nb_ech != self.plotdata.shape[0]:
+            attr1 = -1
         self.init_data(nb_ech)
         if len(son.shape) == 1:
             self.plotdata[:,0] = son[:]
@@ -309,7 +319,7 @@ class FluxAudio(Signal):
                 wx.MessageBox("Channel number are not equal. First channel uses", "Warning", wx.ICON_WARNING)
             elif son.shape[1] == 2:
                 self.plotdata[self.plotdata.shape[0]-nb_ech:,1] += son[:nb_ech,1] 
-        evt = self.NEW_EVENT_GEN(attr1=0, attr2=nb_ech)
+        evt = self.NEW_EVENT_GEN(attr1=attr1, attr2=attr2)
         # Envoi de l'événement à la fenêtre chargée du tracé
         wx.PostEvent(FLUX_AUDIO.courbe, evt)
 
