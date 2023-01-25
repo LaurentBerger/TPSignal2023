@@ -8,7 +8,7 @@ if os.path.splitdrive(os.getcwd())[0] != '':
     if os.path.exists("c:/temp/ffmpeg/bin"):
         os.environ["PATH"] = "c:/temp/ffmpeg/bin" + os.pathsep + os.environ["PATH"]
     else:
-        wx.LogWarning("ffmpeg not found\nffmpeg must be in system path")
+        wx.LogWarning("ffmpeg not found in c:/temp/ffmpeg/bin\nffmpeg must be in system path")
 wx.LogMessage("Convert a wav file to mp3 (8, 32, 128, 320kbps) and mp3 to wav")
 # https://kkroening.github.io/ffmpeg-python/
 my_app = wx.App()
