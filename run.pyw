@@ -271,7 +271,8 @@ class InterfaceAnalyseur(wx.Panel):
                     nb_freq = nb
                     name_best = nom_periph_in
                     idx_best = idx
-            self.menu_periph_in.Check(idx_best+200, True)
+            if idx_best != -1:
+                self.menu_periph_in.Check(idx_best+200, True)
         else:
             idx_best = self.idmenu_audio_in[nom_periph_in]
             name_best = nom_periph_in
