@@ -1,4 +1,6 @@
+import locale
 import wx.grid
+
 
 
 class GridFrequency(wx.Frame):
@@ -20,6 +22,7 @@ class GridFrequency(wx.Frame):
         self.Bind(wx.grid.EVT_GRID_LABEL_LEFT_CLICK, self.line_selected)
         self.peak = False
         self.oscilloscope = None
+        locale.setlocale(locale.LC_ALL, '')
 
     def close_page(self, evt):
         self.Show(False)
@@ -49,6 +52,8 @@ class GridFrequency(wx.Frame):
         self.oscilloscope =  oscillo
 
     def message(self, texte, peak=False):
+        if locale.localeconv()['mon_decimal_point'] == ',':
+            texte = texte.replace('.', ',')
         self.grid.ClearGrid()
         self.peak = peak
         ligne =  texte.split("\n")
@@ -58,5 +63,7 @@ class GridFrequency(wx.Frame):
             col = 0
             if row < self.nb_rows:
                 for col, cell in enumerate(l_cell):
-                    if col < self.nb_cols: 
+                    if col < self.nb_cols:
+                        cell  = cell.replace('\t','')
+                        cell  = cell.replace('\n','')
                         self.grid.SetCellValue(row, col, cell)
