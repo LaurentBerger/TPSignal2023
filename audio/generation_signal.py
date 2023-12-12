@@ -797,6 +797,11 @@ class InterfaceGeneration(wx.Panel):
         self.choix_Fe_sinus_cut = wx.Choice(page, choices=self.val_Fe)
         self.choix_Fe_sinus_cut.SetSelection(3)
         self.ajouter_gadget((self.choix_Fe_sinus_cut, 1), ctrl, ma_grille, font)
+        bouton = wx.Button(page, id=BOUTON_SAVE_SINUS_CUT)
+        bouton.SetLabel('Save')
+        bouton.SetBackgroundColour(wx.Colour(0, 255, 0))
+        bouton.Bind(wx.EVT_BUTTON, self.save_sinus_cut, bouton)
+        self.ajouter_gadget((bouton, 0), ctrl, ma_grille, font)
         st_texte = wx.StaticText(page, label="Sampling frequency (Hz)")
 
         self.ajouter_gadget((st_texte, 0), ctrl, ma_grille, font, wx.EXPAND|wx.TOP)
