@@ -1029,8 +1029,8 @@ class InterfaceGeneration(wx.Panel):
         """
         sauvegarde du signal carré
         """
-        self.maj_param_square()
-        if self.signal_carre():
+        self.maj_param_sawtooth()
+        if self.signal_saw_tooth():
             nom_fichier = "sawtooth_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_sawtooth()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_sawtooth()) + "Hz_"
