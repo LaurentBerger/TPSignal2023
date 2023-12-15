@@ -1,7 +1,10 @@
 from ast import Try
 from pickle import NONE
 import queue
+import os
 import sys
+import time
+import traceback
 from warnings import catch_warnings
 
 import numpy as np
@@ -14,6 +17,14 @@ NEW_EVENT_GEN = None
 # flux_audio variable global utilisée dans callback  audio_callback
 FLUX_AUDIO = None
 NB_BUFFER = 64
+
+def except_as_texte():
+    e = sys.exc_info()
+    texte  = 'Error Return Type: ' + str(type(e)) +'\n'
+    texte += 'Error Class: ' + str(e[0]) +'\n'
+    texte += 'Error Message: ' + str(e[1]) +'\n'
+    texte += 'Error Traceback: ' +  str(traceback.format_tb(e[2])) +'\n'    
+    return texte
 
 frequence_num = [11025.0, 22050.0, 44100.0, 48000.0, 88200.0, 176400.0]
 
@@ -261,7 +272,11 @@ class FluxAudio(Signal):
                 if str(freq) not in self.frequence_dispo:
                     self.frequence_dispo.append(str(freq))
             except:
-                pass
+                texte = "ERROR in open or close for InputChannel"
+                wx.LogMessage(texte)
+                wx.MessageBox(texte, "Error", wx.ICON_ERROR)
+                texte  = except_as_texte()
+                wx.LogMessage(texte)
         return len(self.frequence_dispo)
 
     def open_stream_in(self, device_idx):
