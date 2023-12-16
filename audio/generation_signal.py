@@ -8,6 +8,7 @@ d'une durée T
 """
 # pylint: disable=maybe-no-member
 import sys
+import os
 import soundfile
 import sounddevice
 import wx
@@ -17,6 +18,7 @@ import scipy.signal
 import audio.fluxaudio
 
 
+BASE_PATH = os.path.dirname(os.path.abspath(__file__)) + "/../data/"
 
 BOUTON_SAVE_CHIRP = 14001
 BOUTON_PLAY_CHIRP = 14002
@@ -362,7 +364,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_chirp()
         if self.chirp():
-            nom_fichier = "chirp_" + str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "chirp_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + self.methode +  "_"
             nom_fichier = nom_fichier + str(self.duree_chirp()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_t0()) + "_" + str(self.f1_t1())
@@ -499,7 +501,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_gaussian()
         if self.signal_gaussian():
-            nom_fichier = "gaussian_"+ str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "gaussian_"+ str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_gaussian()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_gaussian()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_gaussian()) 
@@ -635,7 +637,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_sinus()
         if self.sinus():
-            nom_fichier = "sinus_" + str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "sinus_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_sinus()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_sinus())
             nom_fichier = nom_fichier + ".wav"
@@ -765,7 +767,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_sinus_cut()
         if self.sinus_cut():
-            nom_fichier = "sinus_cut" + str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "sinus_cut" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_sinus_cut()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_sinus_cut())
             nom_fichier = nom_fichier + ".wav"
@@ -895,7 +897,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_square()
         if self.signal_carre():
-            nom_fichier = "square_" + str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "square_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_square()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_square()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_square()) 
@@ -1031,7 +1033,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_sawtooth()
         if self.signal_sawtooth():
-            nom_fichier = "sawtooth_" + str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "sawtooth_" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + str(self.duree_sawtooth()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_sawtooth()) + "Hz_"
             nom_fichier = nom_fichier + str(self.ratio_sawtooth()) 
@@ -1215,7 +1217,7 @@ class InterfaceGeneration(wx.Panel):
         """
         self.maj_param_ramp()
         if self.ramp():
-            nom_fichier = "ramp" + str(self.Fe) + "_"
+            nom_fichier = BASE_PATH + "ramp" + str(self.Fe) + "_"
             nom_fichier = nom_fichier + "ramp_" + self.fct_ramp +  "_"
             nom_fichier = nom_fichier + str(self.duree_ramp()) + "ms_"
             nom_fichier = nom_fichier + str(self.f0_ramp()) + "_" + str(self.f1_ramp())

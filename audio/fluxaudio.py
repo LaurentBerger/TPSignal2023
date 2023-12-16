@@ -274,7 +274,6 @@ class FluxAudio(Signal):
             except:
                 texte = "ERROR in open or close for InputChannel"
                 wx.LogMessage(texte)
-                wx.MessageBox(texte, "Error", wx.ICON_ERROR)
                 texte  = except_as_texte()
                 wx.LogMessage(texte)
         return len(self.frequence_dispo)

@@ -260,17 +260,50 @@ class InterfaceAnalyseur(wx.Panel):
                                style = wx.PD_APP_MODAL
                                 )
         if nom_periph_in is None:
+            periph_off = set()
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            file_name = base_path + "/config_periph.cfg"
+            if not(os.path.isfile(file_name)):
+                with open(file_name, "w") as config_cfg: 
+                    for idx, nom_periph_in in enumerate(self.idmenu_audio_in):
+                        config_cfg.write(nom_periph_in + "\t1\n")
+                        periph_off[nom_periph_in] = 1
+            file_name = base_path + "/config_periph.debug"
+            if os.path.isfile(file_name):
+                with open("config_periph.debug", "r") as config_dbg:
+                    disable_list= config_dbg.read()
+                disable_periph = disable_list.split('\n')
+                for periph in disable_periph:
+                    ligne = periph.split('\t')
+                    if len(ligne) == 2:
+                        try:
+                            on_off = int(ligne[1])
+                            if on_off == 0 :
+                                periph_off.update({ligne[0]})
+                            elif on_off == 1:
+                                if ligne[0] in periph_off:
+                                    periph_off.remove({ligne[0]})
+                            else:
+                                wx.LogMessage("Syntax error in file config_periph.debug:" + periph)
+                        except ValueError:
+                            wx.LogMessage("Syntax error in file config_periph.debug:" + periph)
+            else:
+                with open(file_name, "w") as config_debug: 
+                    pass
+                
+                
             nb_freq = 0
             idx_best = -1
             name_best = None
             for idx, nom_periph_in in enumerate(self.idmenu_audio_in):
                 dlg.Update(idx, nom_periph_in)
                 self.idx_periph_in = self.idmenu_audio_in[nom_periph_in]
-                nb = self.flux_audio.capacite_periph_in(self.liste_periph, self.idx_periph_in)
-                if nb > nb_freq:
-                    nb_freq = nb
-                    name_best = nom_periph_in
-                    idx_best = idx
+                if nom_periph_in not in periph_off:
+                    nb = self.flux_audio.capacite_periph_in(self.liste_periph, self.idx_periph_in)
+                    if nb > nb_freq:
+                        nb_freq = nb
+                        name_best = nom_periph_in
+                        idx_best = idx
             if idx_best != -1:
                 self.menu_periph_in.Check(idx_best+200, True)
         else:
