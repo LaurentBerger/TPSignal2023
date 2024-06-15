@@ -6,7 +6,7 @@ import wx
 try: 
     import ffmpeg
 except:
-    wx.MessageBox("ffmpeg-python  not installed ", wx.ICON_ERROR)
+    print("ffmpeg-python  not installed ")
     
 def except_as_texte():
     e = sys.exc_info()
