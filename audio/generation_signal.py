@@ -118,7 +118,7 @@ class InterfaceGeneration(wx.Panel):
         self.sinus_reference =  True
         self.sinus_reference_cut = True
         self.ramp_reference =  True
-        self.Fe = 22050
+        self.Fe = 44100
         self.t_ech = None
         self.dico_slider = {0: None}
         self._duree_ramp = 1000
