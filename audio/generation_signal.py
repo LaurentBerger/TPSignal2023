@@ -20,6 +20,7 @@ import audio.fluxaudio
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__)) + "/../data/"
 
+DUREE_MAX = 20000
 BOUTON_SAVE_CHIRP = 14001
 BOUTON_PLAY_CHIRP = 14002
 SLIDER_F0_CHIRP = 14003
@@ -117,7 +118,7 @@ class InterfaceGeneration(wx.Panel):
         self.sinus_reference =  True
         self.sinus_reference_cut = True
         self.ramp_reference =  True
-        self.Fe = 22050
+        self.Fe = 44100
         self.t_ech = None
         self.dico_slider = {0: None}
         self._duree_ramp = 1000
@@ -443,7 +444,7 @@ class InterfaceGeneration(wx.Panel):
                              id=SLIDER_DUREE_CHIRP,
                              value=self.duree_chirp(),
                              minValue=0,
-                             maxValue=10000,
+                             maxValue=DUREE_MAX,
                              style=style_texte,
                              name="Duration")
         self.dico_slider[SLIDER_DUREE_CHIRP] = self.duree_chirp
@@ -560,7 +561,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_DUREE_GAUSSIAN,
                            value=self.duree_gaussian(),
                            minValue=0,
-                           maxValue=10000,
+                           maxValue=DUREE_MAX,
                            style=style_texte,
                            name="Duration")
         self.dico_slider[SLIDER_DUREE_GAUSSIAN] = self.duree_gaussian
@@ -693,7 +694,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_DUREE_SINUS,
                            value=self.duree_sinus(),
                            minValue=0,
-                           maxValue=10000,
+                           maxValue=DUREE_MAX,
                            style=style_texte,
                            name="Duration")
         self.dico_slider[SLIDER_DUREE_SINUS] = self.duree_sinus
@@ -823,7 +824,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_DUREE_SINUS_CUT,
                            value=self.duree_sinus_cut(),
                            minValue=0,
-                           maxValue=10000,
+                           maxValue=DUREE_MAX,
                            style=style_texte,
                            name="Duration")
         self.dico_slider[SLIDER_DUREE_SINUS_CUT] = self.duree_sinus_cut
@@ -968,7 +969,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_DUREE_SQUARE,
                            value=self.duree_square(),
                            minValue=0,
-                           maxValue=10000,
+                           maxValue=DUREE_MAX,
                            style=style_texte,
                            name="Duration")
         self.dico_slider[SLIDER_DUREE_SQUARE] = self.duree_square
@@ -1092,7 +1093,7 @@ class InterfaceGeneration(wx.Panel):
                            id=SLIDER_DUREE_SAWTOOTH,
                            value=self.duree_sawtooth(),
                            minValue=0,
-                           maxValue=10000,
+                           maxValue=DUREE_MAX,
                            style=style_texte,
                            name="Duration")
         self.dico_slider[SLIDER_DUREE_SAWTOOTH] = self.duree_sawtooth
@@ -1314,7 +1315,7 @@ class InterfaceGeneration(wx.Panel):
                              id=SLIDER_DUREE_RAMP,
                              value=self.duree_ramp(),
                              minValue=0,
-                             maxValue=10000,
+                             maxValue=DUREE_MAX,
                              style=style_texte,
                              name="Duration")
         self.dico_slider[SLIDER_DUREE_RAMP] = self.duree_ramp
