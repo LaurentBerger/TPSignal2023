@@ -233,18 +233,21 @@ class InterfaceAnalyseur(wx.Panel):
                             'exponential': ('tau', 'center (normalize)', None),
                             'tukey': ('alpha', None)}
         # nom_parametre:(type, valeur actuelle, valeur minimale, valeur maximale)
-        self.dico_parameter = {'beta': ('float', 14, 0, np.PINF, False),
-                               'std': ('float', 1, 0, np.PINF, True),
-                               'p': ('float', 1, 0, np.PINF, False),
-                               'sig': ('float', 1, 0, np.PINF, False),
+        if int(np.version.version.split('.')[0]) < 2:
+            infini_lim = np.PINF
+        else:
+            infini_lim = np.inf
+        self.dico_parameter = {'beta': ('float', 14, 0, infini_lim, False),
+                               'std': ('float', 1, 0, infini_lim, True),
+                               'p': ('float', 1, 0, infini_lim, False),
+                               'sig': ('float', 1, 0, infini_lim, False),
                                'NW (normalize)': ('float', 0.25, 0, 0.5, True),
-                               'Kmax': ('float', 1, 0, np.PINF, False),
+                               'Kmax': ('float', 1, 0, infini_lim, False),
                                'norm': ('list', (2, 'approximate', 'subsample'), False),
-                               'at': ('float', 100, 0, np.PINF, False),
-                               'tau': ('float', 100, 0, np.PINF, False),
-                               'center (normalize)': ('float', 0.5, 0, np.PINF, True),
-                               'alpha': ('float', 0.5, 0, np.PINF, False),
-
+                               'at': ('float', 100, 0, infini_lim, False),
+                               'tau': ('float', 100, 0, infini_lim, False),
+                               'center (normalize)': ('float', 0.5, 0, infini_lim, True),
+                               'alpha': ('float', 0.5, 0, infini_lim, False),
                                }
         self.flux_audio.type_window = self.type_window[0]
         self.choix_freq =  None # liste de choix pour les fréquences
